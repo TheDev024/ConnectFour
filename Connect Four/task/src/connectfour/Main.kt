@@ -6,6 +6,13 @@ val scanner: Scanner = Scanner(System.`in`)
 
 enum class Color { YELLOW, RED }
 
+data class Player(
+    val name: String,
+    val color: Color,
+    var score: Int
+)
+
+// Box drawings unicodes
 const val leftBottom = '\u255A'
 const val rightBottom = '\u255D'
 const val midBottom = '\u2569'
@@ -15,15 +22,13 @@ const val side = '\u2551'
 
 class ConnectFour {
 
-    private val rows: Int
-    private val columns: Int
-    private val player1: String
-    private val player2: String
-    private val color1: Color = Color.YELLOW
-    private val color2: Color = Color.RED
-    private var currentPlayer: String
-    private var currentColor: Color
+    private val rows: Int // number of rows in the board
+    private val columns: Int // number of columns in the board
     private val gameBoard: List<MutableList<Color?>>
+
+    private val player1: Player
+    private val player2: Player
+    private var currentPlayer: Player
 
     init {
         println("Connect Four")
@@ -31,39 +36,76 @@ class ConnectFour {
         val first = scanner.nextLine()
         println("Second player's name:")
         val second = scanner.nextLine()
-        this.player1 = first
-        this.player2 = second
+        this.player1 = Player(first, Color.YELLOW, 0)
+        this.player2 = Player(second, Color.RED, 0)
         val (row, col) = getDimensions()
         this.rows = row
         this.columns = col
         this.gameBoard = List(columns) { mutableListOf() }
         this.currentPlayer = player1
-        this.currentColor = color1
     }
 
     fun startGame() {
-        println("${this.player1} VS ${this.player2}\n${this.rows} X ${this.columns} board")
-        drawBoard()
-        playGame()
+        val games: Int = multipleGames()
+        println("${this.player1.name} VS ${this.player2.name}\n${this.rows} X ${this.columns} board")
+        if (games == 1) {
+            println("Single game")
+            drawBoard()
+            playGame()
+        } else {
+            println("Total $games games")
+            repeat(games) {
+                println("Game #${it + 1}")
+                drawBoard()
+                playGame()
+                println("Score\n" +
+                        "${player1.name}: ${player1.score} ${player2.name}: ${player2.score}")
+                currentPlayer = if (it % 2 == 0) player2 else player1
+                clearBoard()
+            }
+        }
+        println("Game over!")
+    }
+
+    private fun clearBoard() {
+        repeat(columns) { gameBoard[it].clear() }
+    }
+
+    private fun multipleGames(): Int {
+        println(
+            "Do you want to play single or multiple games?\n" +
+                    "For a single game, input 1 or press Enter\n" +
+                    "Input a number of games:"
+        )
+        val count = scanner.nextLine()
+        if (count == "") return 1
+        var n = count.toIntOrNull()
+        if (n == null || n < 1) {
+            println("Invalid Input")
+            n = multipleGames()
+        }
+        return n
     }
 
     private fun playGame() {
         game@ while (true) {
             val input: Int = getInput()
             if (input == 0) break@game
-            gameBoard[input - 1].add(currentColor)
+            gameBoard[input - 1].add(currentPlayer.color)
             drawBoard()
             if (playerWins()) {
-                println("Player $currentPlayer won")
+                println("Player ${currentPlayer.name} won")
+                currentPlayer.score += 2
                 break@game
             }
             if (isDraw()) {
                 println("It is a draw")
+                player1.score += 1
+                player2.score += 1
                 break@game
             }
             changeTurn()
         }
-        println("Game over!")
     }
 
     private fun isDraw(): Boolean {
@@ -87,28 +129,28 @@ class ConnectFour {
             val column = gameBoard[col]
             val colSize = column.lastIndex
             repeat(column.size) { row ->
-                if (currentState[col][row] == currentColor) {
+                if (currentState[col][row] == currentPlayer.color) {
                     if (row <= colSize - 3)
                         for (i in 1..3) {
-                            if (currentState[col][row + i] != currentColor) break
+                            if (currentState[col][row + i] != currentPlayer.color) break
                             if (i == 3) return true
                         }
 
                     if (col < columns - 3)
                         for (i in 1..3) {
-                            if (currentState[col + i][row] != currentColor) break
+                            if (currentState[col + i][row] != currentPlayer.color) break
                             if (i == 3) return true
                         }
 
                     if (col > 2 && row < rows - 3)
                         for (i in 1..3) {
-                            if (currentState[col - i][row + i] != currentColor) break
+                            if (currentState[col - i][row + i] != currentPlayer.color) break
                             if (i == 3) return true
                         }
 
                     if (col < columns - 3 && row < rows - 3)
                         for (i in 1..3) {
-                            if (currentState[col + i][row + i] != currentColor) break
+                            if (currentState[col + i][row + i] != currentPlayer.color) break
                             if (i == 3) return true
                         }
                 }
@@ -120,11 +162,10 @@ class ConnectFour {
 
     private fun changeTurn() {
         currentPlayer = if (currentPlayer == player1) player2 else player1
-        currentColor = if (currentColor == color1) color2 else color1
     }
 
     private fun getInput(): Int {
-        println("$currentPlayer's turn:")
+        println("${currentPlayer.name}'s turn:")
         val input = scanner.nextLine()
         if (input == "end") return 0
         var column = input.toIntOrNull()
